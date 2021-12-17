@@ -1,0 +1,39 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Helpers\Traits\SetIniTrait;
+use App\Setup\Manager\StorageManager;
+use Illuminate\Support\Facades\Artisan;
+
+class InstallDemoDataController extends Controller
+{
+    use SetIniTrait;
+
+    public function run()
+    {
+        if (env('INSTALL_DEMO_DATA')) {
+            config()->set('database.connections.mysql.strict', false);
+            define('STDIN',fopen("php://stdin","r"));
+            $this->setMemoryLimit('500M');
+            $this->setExecutionTime(500);
+            Artisan::call('clear-compiled');
+            Artisan::call('view:clear');
+
+            Artisan::call('config:clear');
+            Artisan::call('cache:clear');
+
+            Artisan::call('migrate:fresh', [
+                '--force' => true,
+            ]);
+
+            Artisan::call('db:demo');
+            Artisan::call('queue:restart');
+
+            resolve(StorageManager::class)->link();
+            config()->set('database.connections.mysql.strict', true);
+        }
+
+        return true;
+    }
+}
